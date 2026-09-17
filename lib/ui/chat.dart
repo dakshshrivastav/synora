@@ -6,7 +6,7 @@ import '../data/workspace.dart';
 import '../state/companion.dart';
 import '../state/providers.dart';
 import 'components.dart';
-import 'dialogs.dart';
+import 'photo_meal.dart';
 import 'theme.dart';
 
 class ChatPage extends ConsumerStatefulWidget {
@@ -292,7 +292,7 @@ class _ChatPageState extends ConsumerState<ChatPage> {
                             children: [
                               IconButton(
                                 tooltip: 'Log a meal with a photo',
-                                onPressed: () => showMealEditor(context),
+                                onPressed: () => showPhotoMealEditor(context),
                                 icon: const Icon(
                                   Icons.add_photo_alternate_outlined,
                                   color: FreonColors.teal,

@@ -1,13 +1,19 @@
 import 'dart:async';
 import 'dart:io';
+import 'dart:convert';
 
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:freon/data/database.dart';
 import 'package:freon/data/repository.dart';
 import 'package:freon/data/workspace.dart';
+import 'package:freon/services/meal_photo.dart';
+import 'package:sqlite3/sqlite3.dart' as sqlite;
+
+import 'meal_estimate_test.dart' show validEstimate;
 
 void main() {
+  TestWidgetsFlutterBinding.ensureInitialized();
   final day = DateTime(2026, 9, 18);
   const meal = MealDraft(
     title: 'Rice bowl',
@@ -155,6 +161,71 @@ void main() {
       throwsFormatException,
     );
     expect((await repo.snapshot()).summaryFor(day), isNull);
+  });
+
+  test(
+    'photo meals persist captions and estimates with idempotent saves',
+    () async {
+      final folder = await Directory.systemTemp.createTemp('freon-photo-test-');
+      final photoRepo = FreonRepository(db, photoDirectory: folder);
+      final bytes = (await MealPhoto.prepare(
+        await File('assets/images/lunch.jpg').readAsBytes(),
+      )).bytes;
+      final draft = MealDraft(
+        title: 'Rice and chicken',
+        kind: 'Lunch',
+        calories: 520,
+        protein: 38,
+        carbs: 55,
+        fat: 15,
+        notes: '24 cm plate, one cup of rice',
+        source: 'ai estimate',
+        estimateJson: jsonEncode({
+          ...validEstimate,
+          'model': 'vision-local',
+          'caption': '24 cm plate, one cup of rice',
+        }),
+      );
+      await photoRepo.savePhotoMeal(day, draft, bytes, id: 'stable-draft');
+      await photoRepo.savePhotoMeal(day, draft, bytes, id: 'stable-draft');
+      final data = await repo.snapshot();
+      expect(data.meals.length, 1);
+      expect(data.caloriesFor(day), 520);
+      expect(data.meals.single.notes, contains('24 cm'));
+      expect(
+        jsonDecode(data.meals.single.estimateJson!)['portion'],
+        validEstimate['portion'],
+      );
+      expect(await File(data.meals.single.imagePath!).readAsBytes(), bytes);
+      expect(await folder.list().length, 1);
+      await photoRepo.deleteMeal(data.meals.single);
+      expect(await folder.list().length, 0);
+      await folder.delete(recursive: true);
+    },
+  );
+
+  test('upgrades a v1 database without losing existing meals', () async {
+    await db.close();
+    closed = true;
+    final folder = await Directory.systemTemp.createTemp('freon-migration-');
+    final file = File('${folder.path}/old.sqlite');
+    final first = AppDatabase(NativeDatabase(file));
+    await FreonRepository(first).saveMeal(day, meal);
+    await first.close();
+    final old = sqlite.sqlite3.open(file.path);
+    old.execute('ALTER TABLE meals DROP COLUMN estimate_json');
+    old.execute('PRAGMA user_version = 1');
+    old.close();
+    final migrated = AppDatabase(NativeDatabase(file));
+    try {
+      final data = await FreonRepository(migrated).snapshot();
+      expect(data.meals.single.title, 'Rice bowl');
+      expect(data.meals.single.estimateJson, isNull);
+      expect(migrated.schemaVersion, 2);
+    } finally {
+      await migrated.close();
+      await folder.delete(recursive: true);
+    }
   });
 
   test(

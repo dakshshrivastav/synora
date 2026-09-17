@@ -19,6 +19,7 @@ class Meals extends Table {
   TextColumn get notes => text().withDefault(const Constant(''))();
   TextColumn get imagePath => text().nullable()();
   TextColumn get source => text().withDefault(const Constant('manual'))();
+  TextColumn get estimateJson => text().nullable()();
   BoolColumn get sample => boolean().withDefault(const Constant(false))();
   DateTimeColumn get createdAt => dateTime()();
   @override
@@ -103,10 +104,13 @@ class AppDatabase extends _$AppDatabase {
       );
 
   @override
-  int get schemaVersion => 1;
+  int get schemaVersion => 2;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
+    onUpgrade: (m, from, to) async {
+      if (from < 2) await m.addColumn(meals, meals.estimateJson);
+    },
     onCreate: (m) async {
       await m.createAll();
       await into(settings).insert(const SettingsCompanion());

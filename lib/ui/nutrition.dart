@@ -8,6 +8,7 @@ import '../data/workspace.dart';
 import '../state/providers.dart';
 import 'components.dart';
 import 'dialogs.dart';
+import 'photo_meal.dart';
 import 'theme.dart';
 
 class NutritionPage extends ConsumerWidget {
@@ -27,10 +28,21 @@ class NutritionPage extends ConsumerWidget {
           eyebrow: 'telemetry // intake',
           title: 'nutrition & macros',
           subtitle: 'a clear view of what fuels your day.',
-          action: FilledButton.icon(
-            onPressed: () => showMealEditor(context),
-            icon: const Icon(Icons.add),
-            label: const Text('Log a meal'),
+          action: Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              OutlinedButton.icon(
+                onPressed: () => showMealEditor(context),
+                icon: const Icon(Icons.edit_outlined, size: 18),
+                label: const Text('Log a meal'),
+              ),
+              FilledButton.icon(
+                onPressed: () => showPhotoMealEditor(context),
+                icon: const Icon(Icons.add_a_photo_outlined, size: 18),
+                label: const Text('Photo meal'),
+              ),
+            ],
           ),
         ),
         TwoColumns(

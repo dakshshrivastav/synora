@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:convert';
 
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
@@ -90,6 +91,7 @@ class _MealEditorState extends ConsumerState<MealEditor> {
           fat: double.parse(_fat.text),
           notes: _notes.text,
           imagePath: photo,
+          estimateJson: widget.meal?.estimateJson,
           source: widget.meal?.source == 'ai estimate'
               ? 'corrected estimate'
               : widget.meal?.source ?? 'manual',
@@ -123,6 +125,43 @@ class _MealEditorState extends ConsumerState<MealEditor> {
                 style: displayStyle(36),
               ),
               const SizedBox(height: 24),
+              if (widget.meal?.estimateJson != null)
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 20),
+                  child: MetroCard(
+                    color: FreonColors.mint,
+                    padding: 16,
+                    child: Builder(
+                      builder: (_) {
+                        final estimate = jsonDecode(
+                          widget.meal!.estimateJson!,
+                        ) as Map<String, dynamic>;
+                        return Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const MicroLabel(
+                              'original model estimate',
+                              color: FreonColors.primary,
+                            ),
+                            const SizedBox(height: 8),
+                            Text(estimate['portion'] as String),
+                            for (final note
+                                in (estimate['assumptions'] as List))
+                              Text(
+                                '• $note',
+                                style: const TextStyle(fontSize: 12),
+                              ),
+                            const SizedBox(height: 8),
+                            Text(
+                              'Model: ${estimate['model']} · uncertainty: ${estimate['uncertainty']}',
+                              style: const TextStyle(fontSize: 11),
+                            ),
+                          ],
+                        );
+                      },
+                    ),
+                  ),
+                ),
               TextFormField(
                 controller: _title,
                 decoration: const InputDecoration(labelText: 'Meal title'),

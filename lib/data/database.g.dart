@@ -115,6 +115,17 @@ class $MealsTable extends Meals with TableInfo<$MealsTable, Meal> {
     requiredDuringInsert: false,
     defaultValue: const Constant('manual'),
   );
+  static const VerificationMeta _estimateJsonMeta = const VerificationMeta(
+    'estimateJson',
+  );
+  @override
+  late final GeneratedColumn<String> estimateJson = GeneratedColumn<String>(
+    'estimate_json',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
   static const VerificationMeta _sampleMeta = const VerificationMeta('sample');
   @override
   late final GeneratedColumn<bool> sample = GeneratedColumn<bool>(
@@ -152,6 +163,7 @@ class $MealsTable extends Meals with TableInfo<$MealsTable, Meal> {
     notes,
     imagePath,
     source,
+    estimateJson,
     sample,
     createdAt,
   ];
@@ -246,6 +258,15 @@ class $MealsTable extends Meals with TableInfo<$MealsTable, Meal> {
         source.isAcceptableOrUnknown(data['source']!, _sourceMeta),
       );
     }
+    if (data.containsKey('estimate_json')) {
+      context.handle(
+        _estimateJsonMeta,
+        estimateJson.isAcceptableOrUnknown(
+          data['estimate_json']!,
+          _estimateJsonMeta,
+        ),
+      );
+    }
     if (data.containsKey('sample')) {
       context.handle(
         _sampleMeta,
@@ -313,6 +334,10 @@ class $MealsTable extends Meals with TableInfo<$MealsTable, Meal> {
         DriftSqlType.string,
         data['${effectivePrefix}source'],
       )!,
+      estimateJson: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}estimate_json'],
+      ),
       sample: attachedDatabase.typeMapping.read(
         DriftSqlType.bool,
         data['${effectivePrefix}sample'],
@@ -342,6 +367,7 @@ class Meal extends DataClass implements Insertable<Meal> {
   final String notes;
   final String? imagePath;
   final String source;
+  final String? estimateJson;
   final bool sample;
   final DateTime createdAt;
   const Meal({
@@ -356,6 +382,7 @@ class Meal extends DataClass implements Insertable<Meal> {
     required this.notes,
     this.imagePath,
     required this.source,
+    this.estimateJson,
     required this.sample,
     required this.createdAt,
   });
@@ -375,6 +402,9 @@ class Meal extends DataClass implements Insertable<Meal> {
       map['image_path'] = Variable<String>(imagePath);
     }
     map['source'] = Variable<String>(source);
+    if (!nullToAbsent || estimateJson != null) {
+      map['estimate_json'] = Variable<String>(estimateJson);
+    }
     map['sample'] = Variable<bool>(sample);
     map['created_at'] = Variable<DateTime>(createdAt);
     return map;
@@ -395,6 +425,9 @@ class Meal extends DataClass implements Insertable<Meal> {
           ? const Value.absent()
           : Value(imagePath),
       source: Value(source),
+      estimateJson: estimateJson == null && nullToAbsent
+          ? const Value.absent()
+          : Value(estimateJson),
       sample: Value(sample),
       createdAt: Value(createdAt),
     );
@@ -417,6 +450,7 @@ class Meal extends DataClass implements Insertable<Meal> {
       notes: serializer.fromJson<String>(json['notes']),
       imagePath: serializer.fromJson<String?>(json['imagePath']),
       source: serializer.fromJson<String>(json['source']),
+      estimateJson: serializer.fromJson<String?>(json['estimateJson']),
       sample: serializer.fromJson<bool>(json['sample']),
       createdAt: serializer.fromJson<DateTime>(json['createdAt']),
     );
@@ -436,6 +470,7 @@ class Meal extends DataClass implements Insertable<Meal> {
       'notes': serializer.toJson<String>(notes),
       'imagePath': serializer.toJson<String?>(imagePath),
       'source': serializer.toJson<String>(source),
+      'estimateJson': serializer.toJson<String?>(estimateJson),
       'sample': serializer.toJson<bool>(sample),
       'createdAt': serializer.toJson<DateTime>(createdAt),
     };
@@ -453,6 +488,7 @@ class Meal extends DataClass implements Insertable<Meal> {
     String? notes,
     Value<String?> imagePath = const Value.absent(),
     String? source,
+    Value<String?> estimateJson = const Value.absent(),
     bool? sample,
     DateTime? createdAt,
   }) => Meal(
@@ -467,6 +503,7 @@ class Meal extends DataClass implements Insertable<Meal> {
     notes: notes ?? this.notes,
     imagePath: imagePath.present ? imagePath.value : this.imagePath,
     source: source ?? this.source,
+    estimateJson: estimateJson.present ? estimateJson.value : this.estimateJson,
     sample: sample ?? this.sample,
     createdAt: createdAt ?? this.createdAt,
   );
@@ -483,6 +520,9 @@ class Meal extends DataClass implements Insertable<Meal> {
       notes: data.notes.present ? data.notes.value : this.notes,
       imagePath: data.imagePath.present ? data.imagePath.value : this.imagePath,
       source: data.source.present ? data.source.value : this.source,
+      estimateJson: data.estimateJson.present
+          ? data.estimateJson.value
+          : this.estimateJson,
       sample: data.sample.present ? data.sample.value : this.sample,
       createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
     );
@@ -502,6 +542,7 @@ class Meal extends DataClass implements Insertable<Meal> {
           ..write('notes: $notes, ')
           ..write('imagePath: $imagePath, ')
           ..write('source: $source, ')
+          ..write('estimateJson: $estimateJson, ')
           ..write('sample: $sample, ')
           ..write('createdAt: $createdAt')
           ..write(')'))
@@ -521,6 +562,7 @@ class Meal extends DataClass implements Insertable<Meal> {
     notes,
     imagePath,
     source,
+    estimateJson,
     sample,
     createdAt,
   );
@@ -539,6 +581,7 @@ class Meal extends DataClass implements Insertable<Meal> {
           other.notes == this.notes &&
           other.imagePath == this.imagePath &&
           other.source == this.source &&
+          other.estimateJson == this.estimateJson &&
           other.sample == this.sample &&
           other.createdAt == this.createdAt);
 }
@@ -555,6 +598,7 @@ class MealsCompanion extends UpdateCompanion<Meal> {
   final Value<String> notes;
   final Value<String?> imagePath;
   final Value<String> source;
+  final Value<String?> estimateJson;
   final Value<bool> sample;
   final Value<DateTime> createdAt;
   final Value<int> rowid;
@@ -570,6 +614,7 @@ class MealsCompanion extends UpdateCompanion<Meal> {
     this.notes = const Value.absent(),
     this.imagePath = const Value.absent(),
     this.source = const Value.absent(),
+    this.estimateJson = const Value.absent(),
     this.sample = const Value.absent(),
     this.createdAt = const Value.absent(),
     this.rowid = const Value.absent(),
@@ -586,6 +631,7 @@ class MealsCompanion extends UpdateCompanion<Meal> {
     this.notes = const Value.absent(),
     this.imagePath = const Value.absent(),
     this.source = const Value.absent(),
+    this.estimateJson = const Value.absent(),
     this.sample = const Value.absent(),
     required DateTime createdAt,
     this.rowid = const Value.absent(),
@@ -610,6 +656,7 @@ class MealsCompanion extends UpdateCompanion<Meal> {
     Expression<String>? notes,
     Expression<String>? imagePath,
     Expression<String>? source,
+    Expression<String>? estimateJson,
     Expression<bool>? sample,
     Expression<DateTime>? createdAt,
     Expression<int>? rowid,
@@ -626,6 +673,7 @@ class MealsCompanion extends UpdateCompanion<Meal> {
       if (notes != null) 'notes': notes,
       if (imagePath != null) 'image_path': imagePath,
       if (source != null) 'source': source,
+      if (estimateJson != null) 'estimate_json': estimateJson,
       if (sample != null) 'sample': sample,
       if (createdAt != null) 'created_at': createdAt,
       if (rowid != null) 'rowid': rowid,
@@ -644,6 +692,7 @@ class MealsCompanion extends UpdateCompanion<Meal> {
     Value<String>? notes,
     Value<String?>? imagePath,
     Value<String>? source,
+    Value<String?>? estimateJson,
     Value<bool>? sample,
     Value<DateTime>? createdAt,
     Value<int>? rowid,
@@ -660,6 +709,7 @@ class MealsCompanion extends UpdateCompanion<Meal> {
       notes: notes ?? this.notes,
       imagePath: imagePath ?? this.imagePath,
       source: source ?? this.source,
+      estimateJson: estimateJson ?? this.estimateJson,
       sample: sample ?? this.sample,
       createdAt: createdAt ?? this.createdAt,
       rowid: rowid ?? this.rowid,
@@ -702,6 +752,9 @@ class MealsCompanion extends UpdateCompanion<Meal> {
     if (source.present) {
       map['source'] = Variable<String>(source.value);
     }
+    if (estimateJson.present) {
+      map['estimate_json'] = Variable<String>(estimateJson.value);
+    }
     if (sample.present) {
       map['sample'] = Variable<bool>(sample.value);
     }
@@ -728,6 +781,7 @@ class MealsCompanion extends UpdateCompanion<Meal> {
           ..write('notes: $notes, ')
           ..write('imagePath: $imagePath, ')
           ..write('source: $source, ')
+          ..write('estimateJson: $estimateJson, ')
           ..write('sample: $sample, ')
           ..write('createdAt: $createdAt, ')
           ..write('rowid: $rowid')
@@ -2992,6 +3046,7 @@ typedef $$MealsTableCreateCompanionBuilder = MealsCompanion Function({
   Value<String> notes,
   Value<String?> imagePath,
   Value<String> source,
+  Value<String?> estimateJson,
   Value<bool> sample,
   required DateTime createdAt,
   Value<int> rowid,
@@ -3008,6 +3063,7 @@ typedef $$MealsTableUpdateCompanionBuilder = MealsCompanion Function({
   Value<String> notes,
   Value<String?> imagePath,
   Value<String> source,
+  Value<String?> estimateJson,
   Value<bool> sample,
   Value<DateTime> createdAt,
   Value<int> rowid,
@@ -3073,6 +3129,11 @@ class $$MealsTableFilterComposer extends Composer<_$AppDatabase, $MealsTable> {
 
   ColumnFilters<String> get source => $composableBuilder(
     column: $table.source,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get estimateJson => $composableBuilder(
+    column: $table.estimateJson,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -3151,6 +3212,11 @@ class $$MealsTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<String> get estimateJson => $composableBuilder(
+    column: $table.estimateJson,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<bool> get sample => $composableBuilder(
     column: $table.sample,
     builder: (column) => ColumnOrderings(column),
@@ -3204,6 +3270,11 @@ class $$MealsTableAnnotationComposer
   GeneratedColumn<String> get source =>
       $composableBuilder(column: $table.source, builder: (column) => column);
 
+  GeneratedColumn<String> get estimateJson => $composableBuilder(
+    column: $table.estimateJson,
+    builder: (column) => column,
+  );
+
   GeneratedColumn<bool> get sample =>
       $composableBuilder(column: $table.sample, builder: (column) => column);
 
@@ -3250,6 +3321,7 @@ class $$MealsTableTableManager
                 Value<String> notes = const Value.absent(),
                 Value<String?> imagePath = const Value.absent(),
                 Value<String> source = const Value.absent(),
+                Value<String?> estimateJson = const Value.absent(),
                 Value<bool> sample = const Value.absent(),
                 Value<DateTime> createdAt = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
@@ -3265,6 +3337,7 @@ class $$MealsTableTableManager
                 notes: notes,
                 imagePath: imagePath,
                 source: source,
+                estimateJson: estimateJson,
                 sample: sample,
                 createdAt: createdAt,
                 rowid: rowid,
@@ -3282,6 +3355,7 @@ class $$MealsTableTableManager
                 Value<String> notes = const Value.absent(),
                 Value<String?> imagePath = const Value.absent(),
                 Value<String> source = const Value.absent(),
+                Value<String?> estimateJson = const Value.absent(),
                 Value<bool> sample = const Value.absent(),
                 required DateTime createdAt,
                 Value<int> rowid = const Value.absent(),
@@ -3297,6 +3371,7 @@ class $$MealsTableTableManager
                 notes: notes,
                 imagePath: imagePath,
                 source: source,
+                estimateJson: estimateJson,
                 sample: sample,
                 createdAt: createdAt,
                 rowid: rowid,

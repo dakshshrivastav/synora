@@ -9,8 +9,9 @@ import 'database.dart';
 import 'workspace.dart';
 
 class FreonRepository {
-  FreonRepository(this.db);
+  FreonRepository(this.db, {this.photoDirectory});
   final AppDatabase db;
+  final Directory? photoDirectory;
   static const _uuid = Uuid();
 
   Stream<Workspace> watch() => db
@@ -72,18 +73,48 @@ class FreonRepository {
               notes: Value(draft.notes.trim()),
               imagePath: Value(draft.imagePath),
               source: Value(draft.source),
+              estimateJson: Value(draft.estimateJson),
               sample: Value(existing?.sample ?? false),
               createdAt: existing?.createdAt ?? DateTime.now(),
             ),
           );
       await _invalidateSummary(dayKey(day));
     });
+    if (existing?.imagePath != null && existing!.imagePath != draft.imagePath) {
+      await _deleteUnusedPhoto(existing.imagePath!);
+    }
   }
 
-  Future<void> deleteMeal(Meal meal) => db.transaction(() async {
-    await (db.delete(db.meals)..where((m) => m.id.equals(meal.id))).go();
-    await _invalidateSummary(meal.day);
-  });
+  Future<void> deleteMeal(Meal meal) async {
+    await db.transaction(() async {
+      await (db.delete(db.meals)..where((m) => m.id.equals(meal.id))).go();
+      await _invalidateSummary(meal.day);
+    });
+    if (meal.imagePath != null) await _deleteUnusedPhoto(meal.imagePath!);
+  }
+
+  Future<Directory> _photoRoot() async {
+    if (photoDirectory != null) return photoDirectory!;
+    final override = Platform.environment['FREON_DATA_DIR'];
+    final root = override == null || override.trim().isEmpty
+        ? (await getApplicationSupportDirectory()).path
+        : override;
+    return Directory(p.join(root, 'photos'));
+  }
+
+  Future<void> _deleteUnusedPhoto(String path) async {
+    if (path.startsWith('assets/')) return;
+    final root = await _photoRoot();
+    if (!p.isWithin(p.absolute(root.path), p.absolute(path))) return;
+    final references =
+        await (db.select(db.meals)
+              ..where((m) => m.imagePath.equals(path))
+              ..limit(1))
+            .get();
+    if (references.isEmpty && await File(path).exists()) {
+      await File(path).delete();
+    }
+  }
 
   Future<void> saveCheckIn(
     DateTime day, {
@@ -393,12 +424,68 @@ class FreonRepository {
     if (await file.length() > 10 * 1024 * 1024) {
       throw const FormatException('Choose an image smaller than 10 MB.');
     }
-    final override = Platform.environment['FREON_DATA_DIR'];
-    final root = override == null || override.trim().isEmpty
-        ? await getApplicationSupportDirectory()
-        : Directory(override);
-    final directory = Directory(p.join(root.path, 'photos'));
+    final directory = await _photoRoot();
     await directory.create(recursive: true);
     return (await file.copy(p.join(directory.path, '${_uuid.v4()}$ext'))).path;
+  }
+
+  /// A saved photo is removed again if its associated database write fails.
+  Future<void> savePhotoMeal(
+    DateTime day,
+    MealDraft draft,
+    Uint8List photo, {
+    required String id,
+  }) async {
+    draft.validate();
+    if (photo.length < 8 ||
+        photo.length > 10 * 1024 * 1024 ||
+        photo[0] != 137 ||
+        photo[1] != 80 ||
+        photo[2] != 78 ||
+        photo[3] != 71) {
+      throw const FormatException('Invalid prepared photo.');
+    }
+    if (!RegExp(r'^[a-zA-Z0-9-]+$').hasMatch(id)) {
+      throw const FormatException('Invalid meal identifier.');
+    }
+    final root = await _photoRoot();
+    await root.create(recursive: true);
+    final file = File(p.join(root.path, '${_uuid.v4()}.png'));
+    try {
+      await file.writeAsBytes(photo, flush: true);
+      await db.transaction(() async {
+        // Stable draft IDs make repeated submissions idempotent.
+        final existing = await (db.select(
+          db.meals,
+        )..where((m) => m.id.equals(id))).getSingleOrNull();
+        if (existing != null) {
+          await file.delete();
+          return;
+        }
+        await db
+            .into(db.meals)
+            .insert(
+              MealsCompanion.insert(
+                id: id,
+                day: dayKey(day),
+                title: draft.title.trim(),
+                kind: draft.kind,
+                calories: draft.calories,
+                protein: draft.protein,
+                carbs: draft.carbs,
+                fat: draft.fat,
+                notes: Value(draft.notes.trim()),
+                imagePath: Value(file.path),
+                source: Value(draft.source),
+                estimateJson: Value(draft.estimateJson),
+                createdAt: DateTime.now(),
+              ),
+            );
+        await _invalidateSummary(dayKey(day));
+      });
+    } catch (_) {
+      if (await file.exists()) await file.delete();
+      rethrow;
+    }
   }
 }

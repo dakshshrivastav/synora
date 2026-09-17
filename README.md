@@ -15,8 +15,8 @@ Freon brings a meal log, hydration tracker, journal, and local AI conversation
 into one desktop workspace. The interface follows our Stitch Metro Material
 designs: flat teal tiles, thin Outfit headings, and compact Hanken Grotesk labels.
 
-**This milestone targets Linux.** The frontend and local middleware are ready
-for hands-on testing before the Android build.
+**Freon is PC-only. Linux is the current build target.** The frontend and local
+middleware are ready for hands-on testing.
 
 ## How It Works
 
@@ -41,9 +41,11 @@ daily reflections. It supplies recent messages and the selected day's logs as
 context. Failed or interrupted responses remain retryable, and editing daily
 logs invalidates their saved reflection.
 
-The app works for manual logging when LM Studio is stopped. Nutrition values
-are user-entered in this milestone; attached photos are stored locally.
-Automatic vision-based nutrition extraction is still to be implemented.
+Photo meals send a locally resized photo **and the user's caption** to the
+selected vision model. Freon validates structured food, portion, calorie, and
+macro estimates before offering editable results. Saving retains the photo,
+caption, original estimate, and corrections, and updates daily totals.
+Manual logging continues to work when LM Studio is stopped.
 
 The HTTP client and orchestration are tested against local test servers and
 controlled streams. **Real-model behavior has not yet been verified** because
@@ -86,8 +88,8 @@ directories. Building does not require LM Studio to be running.
 3. Click **Test connection**, select a text model, and **Save settings**.
 4. Open **Companion** and send a message.
 
-The vision model field is reserved for the next integration milestone. If your
-LM Studio server requires a token, set `FREON_LM_TOKEN` in the process environment
+For photo logging, select an image-capable model in the **Vision model** field.
+If your LM Studio server requires a token, set `FREON_LM_TOKEN` in the process environment
 before launching. Tokens are not stored in SQLite. `.env.example` documents
 optional environment variables; Freon does not automatically load `.env` files.
 
@@ -107,11 +109,31 @@ as ordinary files; it does not claim database encryption.
    reflection. Without it, show the connection error and continue using logs.
 5. Restart Freon to show that the records persist.
 
+### Log a meal from a photo
+
+1. Configure and load a vision-capable model in LM Studio.
+2. Open **Nutrition → Photo meal** (also available from Dashboard and Companion).
+3. **Choose photo**, or use **Take photo** with a connected Linux webcam.
+4. Add a caption describing scale and preparation: “24 cm plate, one cup of
+   rice, 120 g chicken cooked in one teaspoon of oil. I ate half.”
+5. Click **Estimate meal**, review the portion assumptions, and correct any values.
+6. Click **Add to meal log**. The meal appears in your nutrition totals immediately.
+
+JPEG and PNG inputs up to 10 MB are supported. Freon resizes them to at most
+1280 pixels per side and re-encodes a metadata-free PNG locally. Linux webcam
+capture uses an installed `ffmpeg` executable and a V4L2 device (`/dev/video*`);
+photo selection works without FFmpeg. No webcam was available during development,
+so physical capture still needs a hardware check. The Linux integration test
+verifies photo-plus-caption requests, editable estimates, and persistence against
+a local HTTP test server. These tests do not establish nutritional accuracy.
+
 ## What We Built During the Hackathon
 
 - Five native desktop screens adapted from the team's Stitch/HTML references.
 - Local meal CRUD, photo attachments, journal CRUD, hydration add/undo, and
   configurable targets with validated inputs.
+- Photo-and-caption vision requests, validated structured estimates, correction
+  tracking, safe schema migration, and cleanup of deleted meal photos.
 - A single SQLite repository and Riverpod providers, with no backend service.
 - Streaming chat with bounded history, retry, cancellation, and recovery of
   interrupted messages on startup.
@@ -138,7 +160,5 @@ dart run build_runner build
 
 ## What We'd Build Next
 
-First, test and debug this Linux milestone with the team and a real LM Studio
-model. Then add validated food-image estimates and build the Android companion.
-The stream processor, phone/desktop synchronization, and on-device inference
-will be designed separately once their requirements are agreed.
+Test this Linux build with the team, a real LM Studio vision model, and a webcam.
+Freon remains PC-only. Further features will be scoped after that feedback.

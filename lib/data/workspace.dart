@@ -1,4 +1,7 @@
+import 'dart:convert';
+
 import 'database.dart';
+import 'meal_estimate.dart';
 
 String dayKey(DateTime date) =>
     '${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}';
@@ -72,10 +75,12 @@ class MealDraft {
     this.notes = '',
     this.imagePath,
     this.source = 'manual',
+    this.estimateJson,
   });
   final String title, kind, notes, source;
   final double calories, protein, carbs, fat;
   final String? imagePath;
+  final String? estimateJson;
   void validate() {
     if (title.trim().isEmpty ||
         title.length > 200 ||
@@ -91,6 +96,18 @@ class MealDraft {
     }
     if (notes.length > 4000) {
       throw const FormatException('Keep meal notes under 4,000 characters.');
+    }
+    if (estimateJson != null) {
+      if (estimateJson!.length > 24000) {
+        throw const FormatException('Estimate metadata is too long.');
+      }
+      final metadata = jsonDecode(estimateJson!);
+      if (metadata is! Map<String, dynamic> ||
+          metadata['model'] is! String ||
+          metadata['caption'] is! String) {
+        throw const FormatException('Invalid estimate metadata.');
+      }
+      MealEstimate.fromJson(metadata);
     }
   }
 }

@@ -147,13 +147,10 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
               const SizedBox(height: 24),
               _modelField('Text model / chat & reflection', _text),
               const SizedBox(height: 20),
-              _modelField(
-                'Vision model / reserved for image analysis',
-                _vision,
-              ),
+              _modelField('Vision model / photo meals', _vision),
               const SizedBox(height: 12),
               const Text(
-                'The current build supports text chat and daily reflections. Photos are stored with meal logs; automatic image analysis is the next integration milestone.',
+                'Choose an image-capable model for photo meals. Freon sends the photo with your caption and returns editable calorie and macro estimates. The text model is used for chat and reflections.',
                 style: TextStyle(fontSize: 12, color: FreonColors.muted),
               ),
               const SizedBox(height: 24),

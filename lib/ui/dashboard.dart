@@ -7,6 +7,7 @@ import '../state/providers.dart';
 import '../state/companion.dart';
 import 'components.dart';
 import 'dialogs.dart';
+import 'photo_meal.dart';
 import 'theme.dart';
 
 class DashboardPage extends ConsumerStatefulWidget {
@@ -257,9 +258,9 @@ class _DashboardPageState extends ConsumerState<DashboardPage> {
                     SizedBox(
                       width: double.infinity,
                       child: OutlinedButton.icon(
-                        onPressed: () => showMealEditor(context),
+                        onPressed: () => showPhotoMealEditor(context),
                         icon: const Icon(Icons.add, size: 18),
-                        label: const Text('Log a meal'),
+                        label: const Text('Log a photo meal'),
                       ),
                     ),
                   ],

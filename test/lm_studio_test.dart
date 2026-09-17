@@ -1,8 +1,11 @@
 import 'dart:convert';
 import 'dart:io';
+import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:freon/ai/lm_studio.dart';
+
+import 'meal_estimate_test.dart' show validEstimate;
 
 void main() {
   late HttpServer server;
@@ -113,6 +116,113 @@ void main() {
           contains('stopped responding'),
         ),
       ),
+    );
+  });
+
+  test(
+    'sends image and caption together and parses the structured estimate',
+    () async {
+      final photo = Uint8List.fromList([137, 80, 78, 71, 13, 10, 26, 10]);
+      const caption =
+          '24 cm plate; 1 cup rice, 120 g chicken and 1 tsp oil. Ate all.';
+      server.listen((request) async {
+        expect(request.uri.path, '/v1/chat/completions');
+        final body = jsonDecode(await utf8.decoder.bind(request).join());
+        expect(body['model'], 'vision-local');
+        expect(body['stream'], false);
+        expect(body['response_format']['type'], 'json_schema');
+        final content = body['messages'][1]['content'] as List;
+        expect(content[0]['text'], contains(caption));
+        expect(
+          content[1]['image_url']['url'],
+          'data:image/png;base64,${base64Encode(photo)}',
+        );
+        request.response.write(
+          jsonEncode({
+            'choices': [
+              {
+                'finish_reason': 'stop',
+                'message': {'content': jsonEncode(validEstimate)},
+              },
+            ],
+          }),
+        );
+        await request.response.close();
+      });
+      final estimate = await client.estimateMeal(
+        base,
+        'vision-local',
+        photo,
+        caption,
+      );
+      expect(estimate.calories, 520);
+      expect(estimate.assumptions.single, contains('caption'));
+    },
+  );
+
+  test('only schema rejection retries in compatibility mode', () async {
+    var calls = 0;
+    server.listen((request) async {
+      final body = jsonDecode(await utf8.decoder.bind(request).join());
+      calls++;
+      if (calls == 1) {
+        request.response.statusCode = 400;
+        request.response.write('{"error":"json_schema is not supported"}');
+      } else {
+        expect(body.containsKey('response_format'), false);
+        request.response.write(
+          jsonEncode({
+            'choices': [
+              {
+                'finish_reason': 'stop',
+                'message': {
+                  'content': '```json\n${jsonEncode(validEstimate)}\n```',
+                },
+              },
+            ],
+          }),
+        );
+      }
+      await request.response.close();
+    });
+    await client.estimateMeal(
+      base,
+      'vision',
+      Uint8List.fromList([1]),
+      'A plate of lunch',
+    );
+    expect(calls, 2);
+  });
+
+  test('malformed or truncated estimates are not accepted', () async {
+    server.listen((request) async {
+      await request.drain<void>();
+      request.response.write(
+        jsonEncode({
+          'choices': [
+            {
+              'finish_reason': 'length',
+              'message': {'content': jsonEncode(validEstimate)},
+            },
+          ],
+        }),
+      );
+      await request.response.close();
+    });
+    await expectLater(
+      client.estimateMeal(base, 'vision', Uint8List.fromList([1]), 'A plate'),
+      throwsA(isA<ModelFailure>()),
+    );
+  });
+
+  test('missing caption and vision model do not start requests', () async {
+    await expectLater(
+      client.estimateMeal(base, 'vision', Uint8List.fromList([1]), '  '),
+      throwsA(isA<ModelFailure>()),
+    );
+    await expectLater(
+      client.estimateMeal(base, '', Uint8List.fromList([1]), 'Lunch'),
+      throwsA(isA<ModelFailure>()),
     );
   });
 }
